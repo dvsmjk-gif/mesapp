@@ -3,8 +3,7 @@ import { redis } from "./lib/redis"
 import { nanoid } from "nanoid"
 
 export const middleware = async (req: NextRequest) => {
-
-    if (req.headers.get("x-nextjs-data") || req.headers.get("purpose") === "prefetch") {
+    if (req.headers.get("purpose") === "prefetch") {
         return NextResponse.next()
     }
 
@@ -14,30 +13,15 @@ export const middleware = async (req: NextRequest) => {
         return NextResponse.redirect(new URL("/", req.url))
     }
     const roomId = roomMatch[1]
-    const meta = await redis.hgetall<{connected: string | string[], createdAt: number}>(`meta:${roomId}`)
-    if(!meta){
+
+    const exists = await redis.exists(`meta:${roomId}`)
+    if(!exists){
         return NextResponse.redirect(new URL("/?error=room-not-found", req.url))
     }
 
-    let connectedList: string[] = []
-    if (Array.isArray(meta.connected)) {
-        connectedList = meta.connected
-    } else if (typeof meta.connected === "string") {
-        try {
-            connectedList = JSON.parse(meta.connected)
-        } catch {
-            connectedList = []
-        }
-    }
-
     const existingToken = req.cookies.get("x-room-token")?.value
-
-    if(existingToken && connectedList.includes(existingToken)){
+    if(existingToken){
         return NextResponse.next()
-    }
-
-    if(connectedList.length >= 2){
-        return NextResponse.redirect(new URL("/?error=room-full", req.url))
     }
 
     const response = NextResponse.next()
@@ -47,10 +31,6 @@ export const middleware = async (req: NextRequest) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-    })
-
-    await redis.hset(`meta:${roomId}`, {
-        connected: JSON.stringify([...connectedList, token]),
     })
 
     return response
