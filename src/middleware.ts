@@ -3,6 +3,7 @@ import { redis } from "./lib/redis"
 import { nanoid } from "nanoid"
 
 export const middleware = async (req: NextRequest) => {
+
     if (req.headers.get("purpose") === "prefetch") {
         return NextResponse.next()
     }
@@ -21,11 +22,24 @@ export const middleware = async (req: NextRequest) => {
 
     const existingToken = req.cookies.get("x-room-token")?.value
     if(existingToken){
-        return NextResponse.next()
+        // check if this token is already registered
+        const members = await redis.smembers(`room:${roomId}:users`)
+        if(members.includes(existingToken)){
+            return NextResponse.next()
+        }
     }
 
-    const response = NextResponse.next()
+    // count current users
+    const userCount = await redis.scard(`room:${roomId}:users`)
+    if(userCount >= 2){
+        return NextResponse.redirect(new URL("/?error=room-full", req.url))
+    }
+
     const token = nanoid()
+    await redis.sadd(`room:${roomId}:users`, token)
+    await redis.expire(`room:${roomId}:users`, 10 * 60)
+
+    const response = NextResponse.next()
     response.cookies.set("x-room-token", token, {
         path: "/",
         httpOnly: true,
