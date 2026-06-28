@@ -3,6 +3,7 @@ import { redis } from "./lib/redis"
 import { nanoid } from "nanoid"
 
 export const middleware = async (req: NextRequest) => {
+    console.log("middleware running", req.url, req.headers.get("purpose"), req.headers.get("x-nextjs-data"))
 
     if (req.headers.get("purpose") === "prefetch") {
         return NextResponse.next()
@@ -31,7 +32,6 @@ export const middleware = async (req: NextRequest) => {
     const token = nanoid()
     const key = `room:${roomId}:users`
 
-    // Atomically add only if under limit
     const added = await redis.eval(
         `
         local count = redis.call('scard', KEYS[1])
