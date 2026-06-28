@@ -48,8 +48,8 @@ export const middleware = async (req: NextRequest) => {
     })
 
     await redis.hset(`meta:${roomId}`, {
-        connected: [...connectedList, token],
-    })
+    connected: JSON.stringify([...connectedList, token]),
+})
 
     return response
 }
