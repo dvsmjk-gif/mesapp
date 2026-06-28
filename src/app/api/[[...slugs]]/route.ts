@@ -15,11 +15,9 @@ const authPlugin = new Elysia({ name: "auth" })
       throw new Error("Unauthorized")
     }
 
-    const connected = await redis.hget(`meta:${roomId}`, "connected") as string[] | null
-    const connectedList = Array.isArray(connected) ? connected : []
-
-    if (!connectedList.includes(token)) {
-      throw new Error("Unauthorized")
+    const exists = await redis.exists(`meta:${roomId}`)
+    if (!exists) {
+      throw new Error("Room does not exist")
     }
 
     return { roomId, token }
