@@ -3,7 +3,6 @@ import { redis } from "./lib/redis"
 import { nanoid } from "nanoid"
 
 export const middleware = async (req: NextRequest) => {
-    console.log("middleware running", req.url, req.headers.get("purpose"), req.headers.get("x-nextjs-data"))
 
     if (req.headers.get("purpose") === "prefetch") {
         return NextResponse.next()
@@ -29,13 +28,21 @@ export const middleware = async (req: NextRequest) => {
         }
     }
 
+    // Deduplicate concurrent requests
+    const requestId = req.headers.get("x-vercel-id") || nanoid()
+    const dedupKey = `dedup:${roomId}:${requestId}`
+    const isNew = await redis.set(dedupKey, "1", { nx: true, ex: 5 })
+    if (!isNew) {
+        return NextResponse.next()
+    }
+
     const token = nanoid()
     const key = `room:${roomId}:users`
 
     const added = await redis.eval(
         `
         local count = redis.call('scard', KEYS[1])
-        if count >= 3 then return 0 end
+        if count >= 2 then return 0 end
         redis.call('sadd', KEYS[1], ARGV[1])
         redis.call('expire', KEYS[1], 600)
         return 1
