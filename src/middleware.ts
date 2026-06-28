@@ -4,6 +4,10 @@ import { nanoid } from "nanoid"
 
 export const middleware = async (req: NextRequest) => {
 
+    if (req.headers.get("x-nextjs-data") || req.headers.get("purpose") === "prefetch") {
+        return NextResponse.next()
+    }
+
     const pathname = req.nextUrl.pathname
     const roomMatch = pathname.match(/^\/room\/([^/]+)$/)
     if(!roomMatch){
@@ -32,32 +36,21 @@ export const middleware = async (req: NextRequest) => {
         return NextResponse.next()
     }
 
-    const token = nanoid()
-
-    const added = await redis.eval(
-        `
-        local connected = redis.call('hget', KEYS[1], 'connected')
-        local list = {}
-        if connected then list = cjson.decode(connected) end
-        if #list >= 2 then return 0 end
-        table.insert(list, ARGV[1])
-        redis.call('hset', KEYS[1], 'connected', cjson.encode(list))
-        return 1
-        `,
-        [`meta:${roomId}`],
-        [token]
-    )
-
-    if (!added) {
+    if(connectedList.length >= 2){
         return NextResponse.redirect(new URL("/?error=room-full", req.url))
     }
 
     const response = NextResponse.next()
+    const token = nanoid()
     response.cookies.set("x-room-token", token, {
         path: "/",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
+    })
+
+    await redis.hset(`meta:${roomId}`, {
+        connected: JSON.stringify([...connectedList, token]),
     })
 
     return response
