@@ -10,44 +10,48 @@ export const middleware = async (req: NextRequest) => {
         return NextResponse.redirect(new URL("/", req.url))
     }
     const roomId = roomMatch[1]
-    const meta =await redis.hgetall<{connected:string[], createdAt: number }>(`meta:${roomId}`)
-    console.log("meta", meta)
-    console.log("connected", meta?.connected)
-    console.log("connected length", (meta?.connected ?? []).length)
+    const meta = await redis.hgetall<{connected: string | string[], createdAt: number}>(`meta:${roomId}`)
     if(!meta){
         return NextResponse.redirect(new URL("/?error=room-not-found", req.url))
     }
 
+    let connectedList: string[] = []
+    if (Array.isArray(meta.connected)) {
+        connectedList = meta.connected
+    } else if (typeof meta.connected === "string") {
+        try {
+            connectedList = JSON.parse(meta.connected)
+        } catch {
+            connectedList = []
+        }
+    }
+
     const existingToken = req.cookies.get("x-room-token")?.value
 
-    if(existingToken && meta.connected?.includes(existingToken)){
-
+    if(existingToken && connectedList.includes(existingToken)){
         return NextResponse.next()
     }
 
-    if((meta.connected ?? []).length >= 2){
+    if(connectedList.length >= 2){
         return NextResponse.redirect(new URL("/?error=room-full", req.url))
     }
 
-
-
-
     const response = NextResponse.next()
-    const token=nanoid()
+    const token = nanoid()
     response.cookies.set("x-room-token", token, {
-    path: "/",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",  // ← change from "strict" to "lax"
-})
+        path: "/",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+    })
 
-await redis.hset(`meta:${roomId}`, {
-    connected: [...(meta.connected ?? []), token],
-})
-return response
+    await redis.hset(`meta:${roomId}`, {
+        connected: [...connectedList, token],
+    })
+
+    return response
 }
 
 export const config = {
-    matcher:"/room/:path*",
-
+    matcher: "/room/:path*",
 }
