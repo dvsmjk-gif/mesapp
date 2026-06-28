@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { nanoid } from "nanoid";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation"
-const ANIMALS= [  "dog" ,"lion" , "nepobaby", "lovetomag" ,"goat" ,"messi" ,"Rap East"]
+const ANIMALS= [  "dog" ,"lion" ,"lovetomag" ,"goat" ,"messi"]
 const STORAGE_KEY="chat_username"
 
 const generateUsername =() =>{
