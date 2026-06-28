@@ -27,7 +27,6 @@ const rooms = new Elysia({ prefix: '/room' })
   .post('/create', async () => {
     const roomId = nanoid()
     await redis.hset(`meta:${roomId}`, {
-      connected: [],
       createdAt: Date.now()
     })
     await redis.expire(`meta:${roomId}`, ROOM_TTL_SECONDS)
@@ -45,6 +44,7 @@ const rooms = new Elysia({ prefix: '/room' })
     const channel = realtime.channel(`chat:${roomId}`)
     await channel.emit("chat.destroy", { isDestroyed: true })
     await redis.del(`meta:${roomId}`)
+    await redis.del(`room:${roomId}:users`)
     return { success: true }
   })
 

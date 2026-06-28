@@ -22,22 +22,31 @@ export const middleware = async (req: NextRequest) => {
 
     const existingToken = req.cookies.get("x-room-token")?.value
     if(existingToken){
-        // check if this token is already registered
-        const members = await redis.smembers(`room:${roomId}:users`)
-        if(members.includes(existingToken)){
+        const isMember = await redis.sismember(`room:${roomId}:users`, existingToken)
+        if(isMember){
             return NextResponse.next()
         }
     }
 
-    // count current users
-    const userCount = await redis.scard(`room:${roomId}:users`)
-    if(userCount >= 2){
+    const token = nanoid()
+    const key = `room:${roomId}:users`
+
+    // Atomically add only if under limit
+    const added = await redis.eval(
+        `
+        local count = redis.call('scard', KEYS[1])
+        if count >= 2 then return 0 end
+        redis.call('sadd', KEYS[1], ARGV[1])
+        redis.call('expire', KEYS[1], 600)
+        return 1
+        `,
+        [key],
+        [token]
+    )
+
+    if(!added){
         return NextResponse.redirect(new URL("/?error=room-full", req.url))
     }
-
-    const token = nanoid()
-    await redis.sadd(`room:${roomId}:users`, token)
-    await redis.expire(`room:${roomId}:users`, 10 * 60)
 
     const response = NextResponse.next()
     response.cookies.set("x-room-token", token, {
