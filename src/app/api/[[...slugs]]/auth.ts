@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia"
-import { redis } from "@/lib/redis"
+import { redis } from "../../../lib/redis"
 
 class AuthError extends Error {
     constructor(message: string) {
