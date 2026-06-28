@@ -15,9 +15,9 @@ const authPlugin = new Elysia({ name: "auth" })
       throw new Error("Unauthorized")
     }
 
-    const exists = await redis.exists(`meta:${roomId}`)
-    if (!exists) {
-      throw new Error("Room does not exist")
+    const isMember = await redis.sismember(`room:${roomId}:users`, token)
+    if (!isMember) {
+      throw new Error("Unauthorized")
     }
 
     return { roomId, token }
