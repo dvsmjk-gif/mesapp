@@ -11,6 +11,9 @@ export const middleware = async (req: NextRequest) => {
     }
     const roomId = roomMatch[1]
     const meta =await redis.hgetall<{connected:string[], createdAt: number }>(`meta:${roomId}`)
+    console.log("meta", meta)
+    console.log("connected", meta?.connected)
+    console.log("connected length", (meta?.connected ?? []).length)
     if(!meta){
         return NextResponse.redirect(new URL("/?error=room-not-found", req.url))
     }
