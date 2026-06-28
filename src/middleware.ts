@@ -29,8 +29,8 @@ export const middleware = async (req: NextRequest) => {
     }
 
     // Deduplicate concurrent requests
-    const requestId = req.headers.get("x-vercel-id") || nanoid()
-    const dedupKey = `dedup:${roomId}:${requestId}`
+    const requestId = req.headers.get("x-forwarded-for") || req.headers.get("x-vercel-id") || nanoid()
+const dedupKey = `dedup:${roomId}:${requestId}`
     const isNew = await redis.set(dedupKey, "1", { nx: true, ex: 5 })
     if (!isNew) {
         return NextResponse.next()
