@@ -27,7 +27,9 @@ export const middleware = async (req: NextRequest) => {
     }
 
     const existingToken = req.cookies.get("x-room-token")?.value
-
+    console.log("connectedList", connectedList)
+    console.log("connectedList length", connectedList.length)
+    console.log("existingToken", existingToken)
     if(existingToken && connectedList.includes(existingToken)){
         return NextResponse.next()
     }
