@@ -31,12 +31,11 @@ export const middleware = async (req: NextRequest) => {
 
     const response = NextResponse.next()
     const token=nanoid()
-    response.cookies.set("x-room-token",token,{
-        path:"/",
-        httpOnly:true,
-        secure:process.env.NODE_ENV==="production",
-        sameSite:"strict",
-
+    response.cookies.set("x-room-token", token, {
+    path: "/",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",  // ← change from "strict" to "lax"
 })
 
 await redis.hset(`meta:${roomId}`, {
