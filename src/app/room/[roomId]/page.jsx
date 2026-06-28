@@ -41,6 +41,8 @@ useEffect(() => {
     }
 
     fetchTTL()
+    const interval = setInterval(fetchTTL, 30000) // resync every 30s
+    return () => clearInterval(interval)
 }, [roomId])
 
 useEffect(() => {
