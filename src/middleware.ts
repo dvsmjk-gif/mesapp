@@ -29,7 +29,7 @@ export const middleware = async (req: NextRequest) => {
     }
 
     // Deduplicate concurrent requests - store token in dedup key
-    const requestId = req.headers.get("x-forwarded-for") || req.headers.get("x-vercel-id") || nanoid()
+    const requestId = req.headers.get("x-vercel-id") || nanoid()
     const dedupKey = `dedup:${roomId}:${requestId}`
     const newToken = nanoid()
     const isNew = await redis.set(dedupKey, newToken, { nx: true, ex: 5 })
