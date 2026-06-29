@@ -28,15 +28,27 @@ export const middleware = async (req: NextRequest) => {
         }
     }
 
-    // Deduplicate concurrent requests
+    // Deduplicate concurrent requests - store token in dedup key
     const requestId = req.headers.get("x-forwarded-for") || req.headers.get("x-vercel-id") || nanoid()
-const dedupKey = `dedup:${roomId}:${requestId}`
-    const isNew = await redis.set(dedupKey, "1", { nx: true, ex: 5 })
+    const dedupKey = `dedup:${roomId}:${requestId}`
+    const newToken = nanoid()
+    const isNew = await redis.set(dedupKey, newToken, { nx: true, ex: 5 })
+
     if (!isNew) {
-        return NextResponse.next()
+        // Duplicate request - use the token from the first request
+        const dedupToken = await redis.get(dedupKey) as string
+        const response = NextResponse.next()
+        if (dedupToken) {
+            response.cookies.set("x-room-token", dedupToken, {
+                path: "/",
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+            })
+        }
+        return response
     }
 
-    const token = nanoid()
     const key = `room:${roomId}:users`
 
     const added = await redis.eval(
@@ -48,7 +60,7 @@ const dedupKey = `dedup:${roomId}:${requestId}`
         return 1
         `,
         [key],
-        [token]
+        [newToken]
     )
 
     if(!added){
@@ -56,7 +68,7 @@ const dedupKey = `dedup:${roomId}:${requestId}`
     }
 
     const response = NextResponse.next()
-    response.cookies.set("x-room-token", token, {
+    response.cookies.set("x-room-token", newToken, {
         path: "/",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
