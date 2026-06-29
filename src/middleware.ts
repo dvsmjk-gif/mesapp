@@ -54,7 +54,7 @@ export const middleware = async (req: NextRequest) => {
     const added = await redis.eval(
         `
         local count = redis.call('scard', KEYS[1])
-        if count >= 2 then return 0 end
+        if count >= 3 then return 0 end
         redis.call('sadd', KEYS[1], ARGV[1])
         redis.call('expire', KEYS[1], 600)
         return 1
